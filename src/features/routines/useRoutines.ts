@@ -3,15 +3,17 @@ import type { Routine } from '../../domain/types';
 import { dataStore } from '../../data';
 import { newId, nowIso } from '../../domain/ids';
 
-// Phase 1 の最小ルーティン管理: アクティブなルーティンの取得・追加・削除。
-// 連続/累計カウント・21日習慣化判定・アーカイブは Phase 2 で実装する。
+// ルーティン管理: アクティブ/アーカイブ済みの取得・追加・アーカイブ・削除。
+// 連続/累計の算出は streak.ts（純粋）＋ useRoutineStats が担当する。
 export function useRoutines() {
-  const [routines, setRoutines] = useState<Routine[]>([]);
+  const [routines, setRoutines] = useState<Routine[]>([]); // active
+  const [archived, setArchived] = useState<Routine[]>([]);
   const [loading, setLoading] = useState(true);
 
   const reload = useCallback(async () => {
-    const all = await dataStore.routines.getAll();
+    const all = await dataStore.routines.getAll(); // deleted=false のみ
     setRoutines(all.filter((r) => r.status === 'active'));
+    setArchived(all.filter((r) => r.status === 'archived'));
   }, []);
 
   useEffect(() => {
@@ -43,6 +45,21 @@ export function useRoutines() {
     [reload],
   );
 
+  // 習慣化したルーティンを履歴に残す（物理削除はしない）。
+  const archiveRoutine = useCallback(
+    async (id: string) => {
+      const r = await dataStore.routines.getById(id);
+      if (!r) return;
+      await dataStore.routines.put({
+        ...r,
+        status: 'archived',
+        archivedAt: nowIso(),
+      });
+      await reload();
+    },
+    [reload],
+  );
+
   const removeRoutine = useCallback(
     async (id: string) => {
       await dataStore.routines.softDelete(id);
@@ -51,5 +68,12 @@ export function useRoutines() {
     [reload],
   );
 
-  return { routines, loading, addRoutine, removeRoutine };
+  return {
+    routines,
+    archived,
+    loading,
+    addRoutine,
+    archiveRoutine,
+    removeRoutine,
+  };
 }
