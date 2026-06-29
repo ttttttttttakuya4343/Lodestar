@@ -1,0 +1,28 @@
+@import './styles/tokens.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    margin: 0;
+    background-color: var(--color-bg);
+    color: var(--color-text);
+    font-family:
+      system-ui,
+      -apple-system,
+      'Hiragino Kaku Gothic ProN',
+      'Noto Sans JP',
+      sans-serif;
+    -webkit-font-smoothing: antialiased;
+    /* スマホで意図しない長押し選択・ダブルタップズームを抑える（片手操作向け） */
+    -webkit-tap-highlight-color: transparent;
+  }
+}

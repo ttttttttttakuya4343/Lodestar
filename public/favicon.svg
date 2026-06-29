@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Lodestar">
+  <rect width="512" height="512" rx="112" fill="#ffffff"/>
+  <rect x="16" y="16" width="480" height="480" rx="96" fill="#d7eef8"/>
+  <!-- 導きの星（lodestar） -->
+  <path fill="#5cc6e8" d="M256 96l44 116 124 8-96 80 32 120-104-68-104 68 32-120-96-80 124-8z"/>
+  <circle cx="256" cy="262" r="34" fill="#ffffff"/>
+</svg>

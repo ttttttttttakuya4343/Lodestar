@@ -1,0 +1,13 @@
+/* src/styles/tokens.css — 水色×ミニマル（デザイントークン） */
+/* 配色・余白・角丸は CSS 変数で一元管理。tailwind.config.js から参照する。 */
+:root {
+  --color-bg: #ffffff;
+  --color-surface: #f7fafd;
+  --color-accent: #5cc6e8; /* 淡い水色（STAR PLANNER 風） */
+  --color-accent-weak: #d7eef8;
+  --color-text: #2b2f33;
+  --color-text-weak: #6b7280;
+  --color-line: #e6edf2;
+  --radius: 14px;
+  --space: 16px; /* 余白は広めを基本に */
+}
