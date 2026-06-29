@@ -83,6 +83,11 @@ export interface WeeklyEntry extends BaseRecord {
 
 export interface MonthlyReflection extends BaseRecord {
   monthKey: string; // 例: 2026-06
+  // Phase 3 で追加: 紙の「月間カレンダー」面の記入欄。1ヶ月=1レコード(id=monthKey)に集約。
+  monthTasks: string[]; // 今月やること
+  memo: string; // MEMO
   insights: string; // 今月の気付き
-  habituatedRoutines: string[]; // 今月習慣化できたルーティン行動
+  // 習慣化ルーティンは streak から自動算出して表示する（保存しない）。
+  // 叩き台の型は維持しつつ、案A では永続化せず常に [] を入れる。
+  habituatedRoutines: string[];
 }

@@ -1,7 +1,6 @@
 import { useState } from 'react';
-import type { ReactNode } from 'react';
 import { ScreenScaffold } from '../../components/ScreenScaffold';
-import { dateKey } from '../../domain/ids';
+import { Section } from '../../components/Section';
 import { useRoutines } from '../routines/useRoutines';
 import { RoutineManagerScreen } from '../routines/RoutineManagerScreen';
 import { useDailyEntry } from './useDailyEntry';
@@ -17,30 +16,12 @@ import { TaskList } from './TaskList';
 import { RoutineCheckList } from './RoutineCheckList';
 import { JournalTextField } from './JournalTextField';
 
-function Section({
-  title,
-  action,
-  children,
-}: {
-  title: string;
-  action?: ReactNode;
-  children: ReactNode;
-}) {
-  return (
-    <section className="mb-7">
-      <div className="mb-3 flex items-center justify-between">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-text-weak">
-          {title}
-        </h2>
-        {action}
-      </div>
-      {children}
-    </section>
-  );
+interface TodayScreenProps {
+  date: string; // 表示中の日付（App が保持。週/月ビューからの遷移でも使う）
+  onChangeDate: (date: string) => void;
 }
 
-export function TodayScreen() {
-  const [date, setDate] = useState(() => dateKey());
+export function TodayScreen({ date, onChangeDate }: TodayScreenProps) {
   const [managerOpen, setManagerOpen] = useState(false);
   const { entry, loading, apply } = useDailyEntry(date);
   const { routines, archived, addRoutine, archiveRoutine, removeRoutine } =
@@ -48,7 +29,7 @@ export function TodayScreen() {
 
   return (
     <ScreenScaffold eyebrow="TODAY" title="日次ジャーナル">
-      <DateNav date={date} onChange={setDate} />
+      <DateNav date={date} onChange={onChangeDate} />
 
       {loading || !entry ? (
         <p className="text-text-weak">読み込み中…</p>

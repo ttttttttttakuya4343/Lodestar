@@ -48,6 +48,34 @@ export function currentStreak(
   return n;
 }
 
+/** その日を末尾とする連続done日数（当日が未doneなら0）。 */
+export function streakEndingOn(done: Set<string>, key: string): number {
+  if (!done.has(key)) return 0;
+  let n = 0;
+  let cursor = key;
+  while (done.has(cursor)) {
+    n += 1;
+    cursor = addDays(cursor, -1);
+  }
+  return n;
+}
+
+/**
+ * その月に「習慣化」（連続が 21 に到達）したか。
+ * 連続は1日ずつ増えるので、月内のいずれかの日で連続=21 になれば達成日がその月にある。
+ */
+export function habituatedInMonth(
+  done: Set<string>,
+  monthKey: string,
+  lastDay: number,
+): boolean {
+  for (let d = 1; d <= lastDay; d += 1) {
+    const key = `${monthKey}-${String(d).padStart(2, '0')}`;
+    if (streakEndingOn(done, key) === HABITUATION_DAYS) return true;
+  }
+  return false;
+}
+
 /** 1つのルーティンの統計をまとめて算出。 */
 export function computeStats(
   entries: DailyEntry[],

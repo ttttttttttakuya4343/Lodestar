@@ -56,3 +56,43 @@ export function weekKey(d: Date = new Date()): string {
     );
   return `${isoYear}-W${String(week).padStart(2, '0')}`;
 }
+
+/** その日が属する週の月曜日（YYYY-MM-DD）。ISO週＝月曜始まり。 */
+export function mondayOf(key: string): string {
+  const dayNum = (parseDateKey(key).getDay() + 6) % 7; // 月曜=0 … 日曜=6
+  return addDays(key, -dayNum);
+}
+
+/** 月曜キーから1週間（月〜日）の日付キー配列。 */
+export function weekDates(mondayKey: string): string[] {
+  return Array.from({ length: 7 }, (_, i) => addDays(mondayKey, i));
+}
+
+/** 月キー(YYYY-MM)に n ヶ月加算した新しい月キー。 */
+export function addMonths(key: string, n: number): string {
+  const [y, m] = key.split('-').map(Number);
+  return monthKey(new Date(y ?? 1970, (m ?? 1) - 1 + n, 1));
+}
+
+/** 月キーの末日（28〜31）。 */
+export function lastDateOfMonth(key: string): number {
+  const [y, m] = key.split('-').map(Number);
+  return new Date(y ?? 1970, m ?? 1, 0).getDate();
+}
+
+/** 日付キーがその月キーに属するか。 */
+export function isInMonth(dayKey: string, key: string): boolean {
+  return dayKey.slice(0, 7) === key;
+}
+
+/**
+ * 月間カレンダー用の日付グリッド（月曜始まり）。
+ * 当月をすべて含む週単位（5〜6週×7日）に整え、前後の隣月の日も含めて返す。
+ */
+export function monthGrid(key: string): string[] {
+  const start = mondayOf(`${key}-01`);
+  const end = addDays(mondayOf(`${key}-${String(lastDateOfMonth(key)).padStart(2, '0')}`), 6);
+  const days: string[] = [];
+  for (let cur = start; cur <= end; cur = addDays(cur, 1)) days.push(cur);
+  return days;
+}
