@@ -1,5 +1,13 @@
 import { describe, it, expect } from 'vitest';
-import { computeStats, currentStreak, doneDates, HABITUATION_DAYS } from './streak';
+import {
+  computeStats,
+  currentStreak,
+  doneDates,
+  habituatedInMonth,
+  HABITUATION_DAYS,
+  streakEndingOn,
+} from './streak';
+import { lastDateOfMonth } from '../../domain/ids';
 import { emptyEntry, toggleRoutineCheck } from '../today/dailyEntry';
 import { addDays } from '../../domain/ids';
 import type { DailyEntry } from '../../domain/types';
@@ -63,5 +71,34 @@ describe('streak 計算', () => {
     const dates: string[] = [];
     for (let i = 0; i < 20; i += 1) dates.push(addDays(TODAY, -i));
     expect(computeStats(entriesDoneOn(dates), RID, TODAY).habituated).toBe(false);
+  });
+});
+
+describe('月内習慣化判定', () => {
+  // 21日連続の達成日（21日目）がその月にあれば「今月習慣化」とみなす。
+  it('達成日(21日目)が当月内なら true', () => {
+    // 2026-06-29 を21日目にする連続（6/9〜6/29）。達成日 6/29 は6月内。
+    const dates: string[] = [];
+    for (let i = 0; i < 21; i += 1) dates.push(addDays('2026-06-29', -i));
+    const done = doneDates(entriesDoneOn(dates), RID);
+    expect(streakEndingOn(done, '2026-06-29')).toBe(21);
+    expect(habituatedInMonth(done, '2026-06', lastDateOfMonth('2026-06'))).toBe(true);
+  });
+
+  it('連続が20日までしかなければ false', () => {
+    const dates: string[] = [];
+    for (let i = 0; i < 20; i += 1) dates.push(addDays('2026-06-29', -i));
+    const done = doneDates(entriesDoneOn(dates), RID);
+    expect(habituatedInMonth(done, '2026-06', lastDateOfMonth('2026-06'))).toBe(false);
+  });
+
+  it('達成日が前月なら当月は false（継続中でも達成は前月）', () => {
+    // 6/1 が21日目になる連続（5/12〜6/1）。達成日 6/1 は6月内なので…別ケースに。
+    // ここでは達成日を5/31にするため 5/11〜5/31 の21日連続を作る。
+    const dates: string[] = [];
+    for (let i = 0; i < 21; i += 1) dates.push(addDays('2026-05-31', -i));
+    const done = doneDates(entriesDoneOn(dates), RID);
+    expect(habituatedInMonth(done, '2026-05', lastDateOfMonth('2026-05'))).toBe(true);
+    expect(habituatedInMonth(done, '2026-06', lastDateOfMonth('2026-06'))).toBe(false);
   });
 });
