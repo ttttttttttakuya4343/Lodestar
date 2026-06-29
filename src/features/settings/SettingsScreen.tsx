@@ -7,13 +7,27 @@ import {
   isBackupData,
   type ImportMode,
 } from '../../data/backup';
+import { parseDateKey } from '../../domain/ids';
+import { formatBytes, isBackupStale } from '../../lib/storage';
 import { EmotionWordsSection } from '../emotions/EmotionWordsSection';
+import { useAppSettings } from './useAppSettings';
+import { useStorageStatus } from './useStorageStatus';
 
 type Status = { kind: 'success' | 'error'; message: string } | null;
+
+function formatBackupDate(iso: string): string {
+  const d = parseDateKey(iso.slice(0, 10));
+  return `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`;
+}
 
 export function SettingsScreen() {
   const [mode, setMode] = useState<ImportMode>('replace');
   const [status, setStatus] = useState<Status>(null);
+  const { settings, markBackedUp } = useAppSettings();
+  const { persisted, estimate } = useStorageStatus();
+
+  const lastBackupAt = settings?.lastBackupAt ?? null;
+  const stale = isBackupStale(lastBackupAt);
 
   const handleExport = async () => {
     try {
@@ -27,6 +41,7 @@ export function SettingsScreen() {
       a.download = backupFileName();
       a.click();
       URL.revokeObjectURL(url);
+      await markBackedUp();
       setStatus({ kind: 'success', message: 'バックアップを書き出しました。' });
     } catch {
       setStatus({ kind: 'error', message: 'エクスポートに失敗しました。' });
@@ -80,10 +95,20 @@ export function SettingsScreen() {
         <button
           type="button"
           onClick={() => void handleExport()}
-          className="mb-5 h-11 w-full rounded-card bg-accent text-sm font-semibold text-white active:opacity-90"
+          className="h-11 w-full rounded-card bg-accent text-sm font-semibold text-white active:opacity-90"
         >
           エクスポート（バックアップを保存）
         </button>
+        <p className="mb-5 mt-2 text-xs text-text-weak">
+          前回のバックアップ:{' '}
+          {lastBackupAt ? formatBackupDate(lastBackupAt) : '未実施'}
+          {stale && (
+            <span className="text-accent-strong">
+              {' '}
+              ・そろそろバックアップをおすすめします
+            </span>
+          )}
+        </p>
 
         <p className="mb-2 text-sm font-semibold text-text">インポート</p>
         <div className="mb-3 flex gap-2">
@@ -133,6 +158,34 @@ export function SettingsScreen() {
             {status.message}
           </p>
         )}
+      </Section>
+
+      <Section title="データの安全性">
+        <ul className="space-y-2 rounded-card border border-line bg-surface p-3 text-sm">
+          <li className="flex items-center justify-between gap-2">
+            <span className="text-text-weak">ストレージの永続化</span>
+            <span className="font-semibold text-text">
+              {persisted === null
+                ? '—'
+                : persisted
+                  ? '有効'
+                  : '未許可'}
+            </span>
+          </li>
+          {estimate && (
+            <li className="flex items-center justify-between gap-2">
+              <span className="text-text-weak">使用量</span>
+              <span className="font-semibold text-text">
+                {formatBytes(estimate.usage)}
+              </span>
+            </li>
+          )}
+        </ul>
+        <p className="mt-2 text-xs text-text-weak">
+          永続化が「有効」だと、ブラウザの空き容量不足でもデータが自動削除されにくくなります。
+          {persisted === false &&
+            ' 端末やブラウザによっては許可されない場合があります。定期的なバックアップが確実です。'}
+        </p>
       </Section>
 
       <EmotionWordsSection />

@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { BottomNav } from './components/BottomNav';
 import { dateKey } from './domain/ids';
+import { requestPersistentStorage } from './lib/storage';
 import { TodayScreen } from './features/today/TodayScreen';
 import { WeekScreen } from './features/week/WeekScreen';
 import { MonthScreen } from './features/month/MonthScreen';
@@ -14,6 +15,11 @@ export type TabKey = 'today' | 'week' | 'month' | 'goals' | 'settings';
 export default function App() {
   const [tab, setTab] = useState<TabKey>('today');
   const [todayDate, setTodayDate] = useState(() => dateKey());
+
+  // 起動時にストレージ永続化を要求し、ブラウザによる自動削除を受けにくくする。
+  useEffect(() => {
+    void requestPersistentStorage();
+  }, []);
 
   // 週/月ビューの日付タップ → その日の日次ジャーナルを開く（REQUIREMENTS 4.2）。
   const openDay = (date: string) => {
