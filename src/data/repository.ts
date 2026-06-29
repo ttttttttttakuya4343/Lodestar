@@ -15,6 +15,7 @@ import type {
   WeeklyEntry,
   MonthlyReflection,
 } from '../domain/types';
+import type { BackupData, ImportMode } from './backup';
 
 // 1エンティティ分の汎用 CRUD。保存先に依存しない契約。
 export interface Repository<T extends BaseRecord> {
@@ -36,4 +37,9 @@ export interface DataStore {
   dailyEntries: Repository<DailyEntry>;
   weeklyEntries: Repository<WeeklyEntry>;
   monthlyReflections: Repository<MonthlyReflection>;
+
+  // JSON バックアップ（全エンティティ一括）。UI は保存先を知らずに呼べる。
+  // 案B の RemoteDataStore でも同契約で実装できるようにここに置く。
+  exportAll(): Promise<BackupData>;
+  importAll(data: BackupData, mode: ImportMode): Promise<void>;
 }
