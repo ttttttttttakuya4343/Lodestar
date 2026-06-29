@@ -1,0 +1,266 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >-
+  Lodestar (案B) optional sync backend: Cognito User Pool (single user) +
+  HTTP API (JWT authorizer) + Lambda + DynamoDB. Separate stack from the static
+  site (案A) so the frontend hosting is unchanged — this only adds the sync API.
+  Local-first: the PWA keeps using IndexedDB and syncs through this API.
+
+Resources:
+  # --- Cognito: single-user auth (self sign-up disabled; create the user via CLI) ---
+  UserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UserPoolName: !Sub '${AWS::StackName}-users'
+      AdminCreateUserConfig:
+        AllowAdminCreateUserOnly: true # no public sign-up
+      AutoVerifiedAttributes: [email]
+      UsernameAttributes: [email]
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 12
+          RequireLowercase: true
+          RequireNumbers: true
+          RequireUppercase: true
+          RequireSymbols: false
+
+  UserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      UserPoolId: !Ref UserPool
+      ClientName: !Sub '${AWS::StackName}-spa'
+      GenerateSecret: false # public SPA client (no secret)
+      ExplicitAuthFlows:
+        - ALLOW_USER_SRP_AUTH
+        - ALLOW_REFRESH_TOKEN_AUTH
+      AccessTokenValidity: 1
+      IdTokenValidity: 1
+      RefreshTokenValidity: 30
+      TokenValidityUnits:
+        AccessToken: hours
+        IdToken: hours
+        RefreshToken: days
+
+  # --- DynamoDB: single table, one partition per user ---
+  SyncTable:
+    Type: AWS::DynamoDB::Table
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BillingMode: PAY_PER_REQUEST # on-demand; free-tier friendly, no capacity mgmt
+      AttributeDefinitions:
+        - AttributeName: pk
+          AttributeType: S
+        - AttributeName: sk
+          AttributeType: S
+        - AttributeName: updatedAt
+          AttributeType: S
+      KeySchema:
+        - AttributeName: pk
+          KeyType: HASH
+        - AttributeName: sk
+          KeyType: RANGE
+      GlobalSecondaryIndexes:
+        - IndexName: byUpdatedAt
+          KeySchema:
+            - AttributeName: pk
+              KeyType: HASH
+            - AttributeName: updatedAt
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+
+  # --- Lambda execution role ---
+  FunctionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: dynamodb-access
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:PutItem
+                  - dynamodb:Query
+                Resource:
+                  - !GetAtt SyncTable.Arn
+                  - !Sub '${SyncTable.Arn}/index/*'
+
+  # --- Lambda: sync handler (inline so the stack deploys with a single command) ---
+  SyncFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub '${AWS::StackName}-sync'
+      Runtime: nodejs20.x
+      Handler: index.handler
+      Timeout: 10
+      MemorySize: 256
+      Role: !GetAtt FunctionRole.Arn
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref SyncTable
+      Code:
+        ZipFile: |
+          const { DynamoDBClient } = require('@aws-sdk/client-dynamodb');
+          const {
+            DynamoDBDocumentClient, QueryCommand, GetCommand, PutCommand,
+          } = require('@aws-sdk/lib-dynamodb');
+
+          const TABLE = process.env.TABLE_NAME;
+          const ddb = DynamoDBDocumentClient.from(new DynamoDBClient({}));
+          const ENTITY_TYPES = new Set([
+            'settings', 'emotionWords', 'openWindow64', 'starSheets',
+            'routines', 'dailyEntries', 'weeklyEntries', 'monthlyReflections',
+          ]);
+
+          function resp(code, body) {
+            return {
+              statusCode: code,
+              headers: { 'content-type': 'application/json' },
+              body: JSON.stringify(body),
+            };
+          }
+
+          exports.handler = async (event) => {
+            const method = event.requestContext?.http?.method;
+            const sub = event.requestContext?.authorizer?.jwt?.claims?.sub;
+            if (!sub) return resp(401, { message: 'Unauthorized' });
+            const pk = `USER#${sub}`;
+
+            try {
+              if (method === 'GET') {
+                const since =
+                  event.queryStringParameters?.since || '1970-01-01T00:00:00.000Z';
+                const out = await ddb.send(new QueryCommand({
+                  TableName: TABLE,
+                  IndexName: 'byUpdatedAt',
+                  KeyConditionExpression: 'pk = :pk AND updatedAt > :since',
+                  ExpressionAttributeValues: { ':pk': pk, ':since': since },
+                }));
+                const records = (out.Items || []).map(
+                  (it) => ({ entityType: it.entityType, ...it.record }),
+                );
+                return resp(200, { records, serverTime: new Date().toISOString() });
+              }
+
+              if (method === 'POST') {
+                const body = JSON.parse(event.body || '{}');
+                const incoming = Array.isArray(body.records) ? body.records : [];
+                let applied = 0;
+                for (const rec of incoming) {
+                  const { entityType, ...record } = rec;
+                  if (!ENTITY_TYPES.has(entityType)) continue;
+                  if (!record.id || !record.updatedAt) continue;
+                  const sk = `${entityType}#${record.id}`;
+                  const existing = await ddb.send(new GetCommand({
+                    TableName: TABLE, Key: { pk, sk },
+                  }));
+                  const prev = existing.Item?.updatedAt;
+                  // last-write-wins: 取り込みの updatedAt が新しい（または初出）なら保存
+                  if (!prev || record.updatedAt >= prev) {
+                    await ddb.send(new PutCommand({
+                      TableName: TABLE,
+                      Item: { pk, sk, entityType, updatedAt: record.updatedAt, record },
+                    }));
+                    applied += 1;
+                  }
+                }
+                return resp(200, { applied, serverTime: new Date().toISOString() });
+              }
+
+              return resp(405, { message: 'Method not allowed' });
+            } catch (err) {
+              console.error(err);
+              return resp(500, { message: 'Internal error' });
+            }
+          };
+
+  # --- HTTP API + JWT authorizer ---
+  HttpApi:
+    Type: AWS::ApiGatewayV2::Api
+    Properties:
+      Name: !Sub '${AWS::StackName}-api'
+      ProtocolType: HTTP
+      CorsConfiguration:
+        # Bearer-token auth (no cookies) なので '*' で可。必要なら配信ドメインに絞る。
+        AllowOrigins: ['*']
+        AllowMethods: [GET, POST, OPTIONS]
+        AllowHeaders: [authorization, content-type]
+
+  JwtAuthorizer:
+    Type: AWS::ApiGatewayV2::Authorizer
+    Properties:
+      ApiId: !Ref HttpApi
+      AuthorizerType: JWT
+      Name: cognito-jwt
+      IdentitySource:
+        - '$request.header.Authorization'
+      JwtConfiguration:
+        Audience:
+          - !Ref UserPoolClient
+        Issuer: !Sub 'https://cognito-idp.${AWS::Region}.amazonaws.com/${UserPool}'
+
+  Integration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref HttpApi
+      IntegrationType: AWS_PROXY
+      IntegrationUri: !GetAtt SyncFunction.Arn
+      PayloadFormatVersion: '2.0'
+
+  RouteGetChanges:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref HttpApi
+      RouteKey: 'GET /changes'
+      AuthorizationType: JWT
+      AuthorizerId: !Ref JwtAuthorizer
+      Target: !Sub 'integrations/${Integration}'
+
+  RoutePostChanges:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref HttpApi
+      RouteKey: 'POST /changes'
+      AuthorizationType: JWT
+      AuthorizerId: !Ref JwtAuthorizer
+      Target: !Sub 'integrations/${Integration}'
+
+  Stage:
+    Type: AWS::ApiGatewayV2::Stage
+    Properties:
+      ApiId: !Ref HttpApi
+      StageName: $default
+      AutoDeploy: true
+
+  InvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref SyncFunction
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub 'arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${HttpApi}/*'
+
+Outputs:
+  ApiEndpoint:
+    Description: Base URL for VITE_API_BASE_URL.
+    Value: !GetAtt HttpApi.ApiEndpoint
+  UserPoolId:
+    Description: VITE_COGNITO_USER_POOL_ID
+    Value: !Ref UserPool
+  UserPoolClientId:
+    Description: VITE_COGNITO_CLIENT_ID
+    Value: !Ref UserPoolClient
+  Region:
+    Description: VITE_AWS_REGION
+    Value: !Ref AWS::Region
