@@ -1,0 +1,119 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >-
+  Lodestar (案A) static hosting: private S3 bucket served only via CloudFront
+  using Origin Access Control (OAC). Uses the default *.cloudfront.net domain
+  (no custom domain) so no ACM / Route 53 is required. SPA 403/404 fall back to
+  index.html. Designed to stay within the always-free tier (target $0/month).
+
+Parameters:
+  PriceClass:
+    Type: String
+    # PriceClass_200 includes Japan/Asia edges (good latency for a JP user) and
+    # still fits CloudFront's perpetual free tier. Use PriceClass_100 for the
+    # cheapest set of edges (US/Canada/Europe) if you prefer.
+    Default: PriceClass_200
+    AllowedValues:
+      - PriceClass_100
+      - PriceClass_200
+      - PriceClass_All
+    Description: CloudFront price class (which edge locations serve traffic).
+
+Resources:
+  SiteBucket:
+    Type: AWS::S3::Bucket
+    # Keep the bucket fully private; CloudFront (OAC) is the only reader.
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      OwnershipControls:
+        Rules:
+          - ObjectOwnership: BucketOwnerEnforced
+
+  OriginAccessControl:
+    Type: AWS::CloudFront::OriginAccessControl
+    Properties:
+      OriginAccessControlConfig:
+        Name: !Sub '${AWS::StackName}-oac'
+        Description: OAC for the Lodestar site bucket
+        OriginAccessControlOriginType: s3
+        SigningBehavior: always
+        SigningProtocol: sigv4
+
+  Distribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        Comment: !Sub 'Lodestar (${AWS::StackName})'
+        DefaultRootObject: index.html
+        HttpVersion: http2and3
+        IPV6Enabled: true
+        PriceClass: !Ref PriceClass
+        Origins:
+          - Id: S3Origin
+            DomainName: !GetAtt SiteBucket.RegionalDomainName
+            OriginAccessControlId: !GetAtt OriginAccessControl.Id
+            S3OriginConfig:
+              OriginAccessIdentity: ''
+        DefaultCacheBehavior:
+          TargetOriginId: S3Origin
+          ViewerProtocolPolicy: redirect-to-https
+          Compress: true
+          AllowedMethods: [GET, HEAD]
+          CachedMethods: [GET, HEAD]
+          # Managed cache policy "CachingOptimized".
+          CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6
+        # SPA: send client-side routes and missing keys to index.html.
+        CustomErrorResponses:
+          - ErrorCode: 403
+            ResponseCode: 200
+            ResponsePagePath: /index.html
+            ErrorCachingMinTTL: 10
+          - ErrorCode: 404
+            ResponseCode: 200
+            ResponsePagePath: /index.html
+            ErrorCachingMinTTL: 10
+        ViewerCertificate:
+          # Use the default *.cloudfront.net certificate (no custom domain).
+          CloudFrontDefaultCertificate: true
+
+  # Allow only this CloudFront distribution to read objects from the bucket.
+  SiteBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref SiteBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: AllowCloudFrontServicePrincipalReadOnly
+            Effect: Allow
+            Principal:
+              Service: cloudfront.amazonaws.com
+            Action: s3:GetObject
+            Resource: !Sub '${SiteBucket.Arn}/*'
+            Condition:
+              StringEquals:
+                AWS:SourceArn: !Sub 'arn:aws:cloudfront::${AWS::AccountId}:distribution/${Distribution.Id}'
+
+Outputs:
+  BucketName:
+    Description: Name of the S3 bucket holding the build output.
+    Value: !Ref SiteBucket
+  DistributionId:
+    Description: CloudFront distribution id (used for cache invalidation).
+    Value: !Ref Distribution
+  DistributionDomainName:
+    Description: Public URL host of the site (https://<this>).
+    Value: !GetAtt Distribution.DomainName
+  SiteUrl:
+    Description: Full site URL.
+    Value: !Sub 'https://${Distribution.DomainName}'

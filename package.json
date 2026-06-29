@@ -9,7 +9,9 @@
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "infra:provision": "bash scripts/provision.sh",
+    "deploy": "bash scripts/deploy.sh"
   },
   "dependencies": {
     "dexie": "^4.0.10",
