@@ -3,6 +3,8 @@
 import type { Table } from 'dexie';
 import type { BaseRecord } from '../../domain/types';
 import type { DataStore, Repository } from '../repository';
+import type { BackupData, ImportMode } from '../backup';
+import { shouldOverwrite } from '../backup';
 import { nowIso } from '../../domain/ids';
 import { db } from './db';
 
@@ -42,6 +44,37 @@ class LocalRepository<T extends BaseRecord> implements Repository<T> {
   }
 }
 
+// 全テーブル（バックアップ対象）。トランザクション範囲と一括処理で共用。
+const ALL_TABLES = [
+  db.settings,
+  db.emotionWords,
+  db.openWindow64,
+  db.starSheets,
+  db.routines,
+  db.dailyEntries,
+  db.weeklyEntries,
+  db.monthlyReflections,
+];
+
+/** 1テーブル分の取り込み。replace は全消去後に投入、merge は updatedAt の新しい方を採用。 */
+async function importTable<T extends BaseRecord>(
+  table: Table<T, string>,
+  records: T[],
+  mode: ImportMode,
+): Promise<void> {
+  if (mode === 'replace') {
+    await table.clear();
+    await table.bulkPut(records);
+    return;
+  }
+  for (const rec of records) {
+    const existing = await table.get(rec.id);
+    if (shouldOverwrite(existing?.updatedAt, rec.updatedAt)) {
+      await table.put(rec);
+    }
+  }
+}
+
 /** IndexedDB を保存先とする DataStore を生成。 */
 export function createLocalDataStore(): DataStore {
   return {
@@ -53,5 +86,42 @@ export function createLocalDataStore(): DataStore {
     dailyEntries: new LocalRepository(db.dailyEntries),
     weeklyEntries: new LocalRepository(db.weeklyEntries),
     monthlyReflections: new LocalRepository(db.monthlyReflections),
+
+    // 論理削除済みも含めた完全ダンプ（tombstone を保持）。
+    async exportAll(): Promise<BackupData> {
+      return {
+        app: 'lodestar',
+        version: 1,
+        exportedAt: nowIso(),
+        data: {
+          settings: await db.settings.toArray(),
+          emotionWords: await db.emotionWords.toArray(),
+          openWindow64: await db.openWindow64.toArray(),
+          starSheets: await db.starSheets.toArray(),
+          routines: await db.routines.toArray(),
+          dailyEntries: await db.dailyEntries.toArray(),
+          weeklyEntries: await db.weeklyEntries.toArray(),
+          monthlyReflections: await db.monthlyReflections.toArray(),
+        },
+      };
+    },
+
+    async importAll(backup: BackupData, mode: ImportMode): Promise<void> {
+      // 全テーブルを1トランザクションで処理し、途中失敗時はロールバックする。
+      await db.transaction('rw', ALL_TABLES, async () => {
+        await importTable(db.settings, backup.data.settings, mode);
+        await importTable(db.emotionWords, backup.data.emotionWords, mode);
+        await importTable(db.openWindow64, backup.data.openWindow64, mode);
+        await importTable(db.starSheets, backup.data.starSheets, mode);
+        await importTable(db.routines, backup.data.routines, mode);
+        await importTable(db.dailyEntries, backup.data.dailyEntries, mode);
+        await importTable(db.weeklyEntries, backup.data.weeklyEntries, mode);
+        await importTable(
+          db.monthlyReflections,
+          backup.data.monthlyReflections,
+          mode,
+        );
+      });
+    },
   };
 }
