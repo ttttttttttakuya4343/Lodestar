@@ -19,6 +19,19 @@ export function dateKey(d: Date = new Date()): string {
   return `${y}-${m}-${day}`;
 }
 
+/** 日付キー(YYYY-MM-DD)を Date に戻す（ローカルタイム正午基準で DST ずれを避ける）。 */
+export function parseDateKey(key: string): Date {
+  const [y, m, d] = key.split('-').map(Number);
+  return new Date(y ?? 1970, (m ?? 1) - 1, d ?? 1, 12, 0, 0, 0);
+}
+
+/** 日付キーに days 日加算した新しい日付キーを返す。 */
+export function addDays(key: string, days: number): string {
+  const d = parseDateKey(key);
+  d.setDate(d.getDate() + days);
+  return dateKey(d);
+}
+
 /** ローカルタイムの YYYY-MM（MonthlyReflection.monthKey 用）。 */
 export function monthKey(d: Date = new Date()): string {
   const y = d.getFullYear();
