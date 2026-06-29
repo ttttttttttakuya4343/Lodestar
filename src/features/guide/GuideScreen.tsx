@@ -1,12 +1,10 @@
-// 使い方ガイド（全画面の読み物オーバーレイ）。初回起動時の自動表示と設定からの表示で共用。
-import { useState } from 'react';
+// 使い方ガイド（「使い方」タブの画面）。読み物として常設。
 import type { ReactNode } from 'react';
+import { ScreenScaffold } from '../../components/ScreenScaffold';
 import { GUIDE_BLOCKS, GUIDE_TITLE, type GuideBlock } from './guideContent';
-import { isGuideDismissed, setGuideDismissed } from './guide';
 
-interface GuideScreenProps {
-  onClose: () => void;
-}
+// タイトルの「— あとに続くキャッチ」をリード文として使う。
+const TAGLINE = GUIDE_TITLE.split('—')[1]?.trim() ?? '';
 
 // `**強調**` を太字に変換してインライン描画する。
 function renderInline(text: string): ReactNode[] {
@@ -55,66 +53,16 @@ function Block({ block }: { block: GuideBlock }) {
   }
 }
 
-export function GuideScreen({ onClose }: GuideScreenProps) {
-  const [dismissed, setDismissed] = useState(() => isGuideDismissed());
-
-  const toggleDismissed = (next: boolean) => {
-    setDismissed(next);
-    setGuideDismissed(next);
-  };
-
+export function GuideScreen() {
   return (
-    <div className="fixed inset-0 z-30 overflow-y-auto bg-bg">
-      <div
-        className="mx-auto max-w-app px-gutter pb-24"
-        style={{ paddingTop: 'calc(env(safe-area-inset-top) + var(--space))' }}
-      >
-        <header className="mb-5 flex items-start gap-2">
-          <button
-            type="button"
-            aria-label="閉じる"
-            onClick={onClose}
-            className="-ml-1 flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-2xl text-text-weak active:bg-accent-weak"
-          >
-            ‹
-          </button>
-          <div>
-            <p className="flex items-center gap-1 text-xs font-semibold uppercase tracking-widest text-accent">
-              <span aria-hidden>✦</span>
-              GUIDE
-            </p>
-            <h1 className="mt-1 text-xl font-bold text-text">{GUIDE_TITLE}</h1>
-          </div>
-        </header>
+    <ScreenScaffold eyebrow="GUIDE" title="使い方ガイド">
+      {TAGLINE && <p className="-mt-3 mb-4 text-sm text-text-weak">{TAGLINE}</p>}
 
-        <article>
-          {GUIDE_BLOCKS.map((block, i) => (
-            <Block key={i} block={block} />
-          ))}
-        </article>
-
-        <div className="mt-8 border-t border-line pt-4">
-          <label className="flex items-center gap-3">
-            <input
-              type="checkbox"
-              checked={dismissed}
-              onChange={(e) => toggleDismissed(e.target.checked)}
-              className="h-5 w-5 accent-accent"
-            />
-            <span className="text-sm text-text-weak">
-              次回から起動時に表示しない
-            </span>
-          </label>
-
-          <button
-            type="button"
-            onClick={onClose}
-            className="mt-4 h-11 w-full rounded-card bg-accent text-sm font-semibold text-white active:opacity-90"
-          >
-            閉じる
-          </button>
-        </div>
-      </div>
-    </div>
+      <article>
+        {GUIDE_BLOCKS.map((block, i) => (
+          <Block key={i} block={block} />
+        ))}
+      </article>
+    </ScreenScaffold>
   );
 }
