@@ -7,6 +7,7 @@ import { TagListEditor } from '../../../components/TagListEditor';
 import { pushTrimmed, removeAt, setAt } from '../../../lib/arrayOps';
 import { dataStore } from '../../../data';
 import { useKeyedRecord } from '../../../lib/useKeyedRecord';
+import { useEmotionWords } from '../../emotions/useEmotionWords';
 import { BlockEditor } from './BlockEditor';
 import { BLOCK_LAYOUT, emptyOpenWindow64 } from './openWindow64';
 
@@ -38,6 +39,7 @@ export function OpenWindow64Editor({ id, onClose }: OpenWindow64EditorProps) {
     makeEmptyFallback,
   );
   const [blockIndex, setBlockIndex] = useState<number | null>(null);
+  const { labels: emotionLabels } = useEmotionWords();
 
   return (
     <div className="fixed inset-0 z-20 overflow-y-auto bg-bg">
@@ -77,6 +79,7 @@ export function OpenWindow64Editor({ id, onClose }: OpenWindow64EditorProps) {
               <TagListEditor
                 tags={record.star}
                 placeholder="感情の言葉を追加"
+                suggestions={emotionLabels}
                 onAdd={(t) =>
                   apply((p) => ({ ...p, star: pushTrimmed(p.star, t) }))
                 }
