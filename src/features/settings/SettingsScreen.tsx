@@ -7,6 +7,7 @@ import {
   isBackupData,
   type ImportMode,
 } from '../../data/backup';
+import { EmotionWordsSection } from '../emotions/EmotionWordsSection';
 
 type Status = { kind: 'success' | 'error'; message: string } | null;
 
@@ -133,6 +134,8 @@ export function SettingsScreen() {
           </p>
         )}
       </Section>
+
+      <EmotionWordsSection />
     </ScreenScaffold>
   );
 }

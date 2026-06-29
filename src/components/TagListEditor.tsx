@@ -1,4 +1,5 @@
 // タグ（チップ）形式の文字列リスト。今週感じたいプラス感情などに使う。
+// suggestions を渡すと、未選択の候補をタップで追加できるチップとして表示する。
 import { useState } from 'react';
 
 interface TagListEditorProps {
@@ -6,6 +7,7 @@ interface TagListEditorProps {
   placeholder: string;
   onAdd: (text: string) => void;
   onRemove: (index: number) => void;
+  suggestions?: string[];
 }
 
 export function TagListEditor({
@@ -13,6 +15,7 @@ export function TagListEditor({
   placeholder,
   onAdd,
   onRemove,
+  suggestions,
 }: TagListEditorProps) {
   const [draft, setDraft] = useState('');
 
@@ -21,6 +24,8 @@ export function TagListEditor({
     onAdd(draft);
     setDraft('');
   };
+
+  const unused = (suggestions ?? []).filter((s) => !tags.includes(s));
 
   return (
     <div>
@@ -65,6 +70,23 @@ export function TagListEditor({
           追加
         </button>
       </div>
+
+      {unused.length > 0 && (
+        <ul className="mt-2 flex flex-wrap gap-2">
+          {unused.map((s) => (
+            <li key={s}>
+              <button
+                type="button"
+                onClick={() => onAdd(s)}
+                aria-label={`「${s}」を追加`}
+                className="rounded-full border border-line bg-bg px-3 py-1.5 text-sm text-text-weak active:bg-accent-weak"
+              >
+                ＋ {s}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

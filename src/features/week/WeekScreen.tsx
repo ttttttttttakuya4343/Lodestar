@@ -14,6 +14,7 @@ import {
 import { pushTrimmed, removeAt, setAt } from '../../lib/arrayOps';
 import { useRoutines } from '../routines/useRoutines';
 import { useDailyEntryMap } from '../today/useDailyEntryMap';
+import { useEmotionWords } from '../emotions/useEmotionWords';
 import { useWeeklyEntry } from './useWeeklyEntry';
 
 interface WeekScreenProps {
@@ -35,6 +36,7 @@ export function WeekScreen({ onOpenDay }: WeekScreenProps) {
   const { record, loading, apply } = useWeeklyEntry(wk);
   const { routines } = useRoutines();
   const { map } = useDailyEntryMap();
+  const { labels: emotionLabels } = useEmotionWords();
 
   const isThisWeek = monday === mondayOf(dateKey());
 
@@ -92,6 +94,7 @@ export function WeekScreen({ onOpenDay }: WeekScreenProps) {
             <TagListEditor
               tags={record.targetEmotions}
               placeholder="感情の言葉を追加"
+              suggestions={emotionLabels}
               onAdd={(t) =>
                 apply((p) => ({
                   ...p,
