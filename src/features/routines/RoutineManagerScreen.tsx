@@ -111,7 +111,10 @@ export function RoutineManagerScreen({
 
   return (
     <div className="fixed inset-0 z-20 overflow-y-auto bg-bg">
-      <div className="mx-auto max-w-app px-gutter pb-24 pt-gutter">
+      <div
+        className="mx-auto max-w-app px-gutter pb-24"
+        style={{ paddingTop: 'calc(env(safe-area-inset-top) + var(--space))' }}
+      >
         <header className="mb-6 flex items-center gap-2">
           <button
             type="button"
@@ -122,7 +125,8 @@ export function RoutineManagerScreen({
             ‹
           </button>
           <div>
-            <p className="text-xs font-semibold uppercase tracking-widest text-accent">
+            <p className="flex items-center gap-1 text-xs font-semibold uppercase tracking-widest text-accent">
+              <span aria-hidden>✦</span>
               ROUTINES
             </p>
             <h1 className="text-2xl font-bold text-text">ルーティン管理</h1>
