@@ -7,11 +7,14 @@ interface NavItem {
   icon: string; // Phase 0 は絵文字で仮置き（後フェーズでアイコン差し替え）
 }
 
+// 使い方ガイドの STEP の流れに合わせた並び（目標→日次/習慣化→週→月）。
+// 使い方・設定は補助としてその後ろ。
 const ITEMS: NavItem[] = [
+  { key: 'goals', label: '目標', icon: '⭐' },
   { key: 'today', label: '今日', icon: '📝' },
   { key: 'week', label: '週', icon: '🗓️' },
   { key: 'month', label: '月', icon: '📅' },
-  { key: 'goals', label: '目標', icon: '⭐' },
+  { key: 'guide', label: '使い方', icon: '📖' },
   { key: 'settings', label: '設定', icon: '⚙️' },
 ];
 
