@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { BottomNav } from './components/BottomNav';
 import { dateKey } from './domain/ids';
 import { requestPersistentStorage } from './lib/storage';
+import { isSyncConfigured } from './sync/config';
 import { TodayScreen } from './features/today/TodayScreen';
 import { WeekScreen } from './features/week/WeekScreen';
 import { MonthScreen } from './features/month/MonthScreen';
@@ -19,6 +20,27 @@ export default function App() {
   // 起動時にストレージ永続化を要求し、ブラウザによる自動削除を受けにくくする。
   useEffect(() => {
     void requestPersistentStorage();
+  }, []);
+
+  // 同期が設定済みでログイン中なら、起動時に1回だけ同期する。
+  // 同期コード（Amplify を含む）は設定済みのときだけ動的読み込みし、案A では読み込まない。
+  useEffect(() => {
+    if (!isSyncConfigured()) return;
+    void (async () => {
+      const [{ createSyncEngine }, { remoteClient }, { currentEmail }] =
+        await Promise.all([
+          import('./sync/syncEngine'),
+          import('./sync/remoteClient'),
+          import('./sync/auth'),
+        ]);
+      if (await currentEmail()) {
+        try {
+          await createSyncEngine({ remote: remoteClient }).sync();
+        } catch {
+          // 起動時同期の失敗は致命的ではない（手動同期で再試行できる）
+        }
+      }
+    })();
   }, []);
 
   // 週/月ビューの日付タップ → その日の日次ジャーナルを開く（REQUIREMENTS 4.2）。

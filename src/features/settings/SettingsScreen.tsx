@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { lazy, Suspense, useState } from 'react';
 import { ScreenScaffold } from '../../components/ScreenScaffold';
 import { Section } from '../../components/Section';
 import { dataStore } from '../../data';
@@ -9,9 +9,15 @@ import {
 } from '../../data/backup';
 import { parseDateKey } from '../../domain/ids';
 import { formatBytes, isBackupStale } from '../../lib/storage';
+import { isSyncConfigured } from '../../sync/config';
 import { EmotionWordsSection } from '../emotions/EmotionWordsSection';
 import { useAppSettings } from './useAppSettings';
 import { useStorageStatus } from './useStorageStatus';
+
+// 同期 UI（Amplify を含む）は設定済みのときだけ遅延読み込みし、案A のバンドルを軽く保つ。
+const SyncSection = lazy(() =>
+  import('./SyncSection').then((m) => ({ default: m.SyncSection })),
+);
 
 type Status = { kind: 'success' | 'error'; message: string } | null;
 
@@ -187,6 +193,12 @@ export function SettingsScreen() {
             ' 端末やブラウザによっては許可されない場合があります。定期的なバックアップが確実です。'}
         </p>
       </Section>
+
+      {isSyncConfigured() && (
+        <Suspense fallback={null}>
+          <SyncSection />
+        </Suspense>
+      )}
 
       <EmotionWordsSection />
     </ScreenScaffold>
