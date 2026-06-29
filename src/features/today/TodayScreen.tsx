@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import { ScreenScaffold } from '../../components/ScreenScaffold';
 import { dateKey } from '../../domain/ids';
 import { useRoutines } from '../routines/useRoutines';
+import { RoutineManagerScreen } from '../routines/RoutineManagerScreen';
 import { useDailyEntry } from './useDailyEntry';
 import {
   addTask,
@@ -16,12 +17,23 @@ import { TaskList } from './TaskList';
 import { RoutineCheckList } from './RoutineCheckList';
 import { JournalTextField } from './JournalTextField';
 
-function Section({ title, children }: { title: string; children: ReactNode }) {
+function Section({
+  title,
+  action,
+  children,
+}: {
+  title: string;
+  action?: ReactNode;
+  children: ReactNode;
+}) {
   return (
     <section className="mb-7">
-      <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-text-weak">
-        {title}
-      </h2>
+      <div className="mb-3 flex items-center justify-between">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-text-weak">
+          {title}
+        </h2>
+        {action}
+      </div>
       {children}
     </section>
   );
@@ -29,8 +41,10 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
 
 export function TodayScreen() {
   const [date, setDate] = useState(() => dateKey());
+  const [managerOpen, setManagerOpen] = useState(false);
   const { entry, loading, apply } = useDailyEntry(date);
-  const { routines, addRoutine, removeRoutine } = useRoutines();
+  const { routines, archived, addRoutine, archiveRoutine, removeRoutine } =
+    useRoutines();
 
   return (
     <ScreenScaffold eyebrow="TODAY" title="日次ジャーナル">
@@ -49,7 +63,18 @@ export function TodayScreen() {
             />
           </Section>
 
-          <Section title="ルーティンチェック">
+          <Section
+            title="ルーティンチェック"
+            action={
+              <button
+                type="button"
+                onClick={() => setManagerOpen(true)}
+                className="text-sm font-semibold text-accent active:opacity-80"
+              >
+                管理 ›
+              </button>
+            }
+          >
             <RoutineCheckList
               routines={routines}
               isChecked={(id) => isRoutineChecked(entry, id)}
@@ -77,6 +102,17 @@ export function TodayScreen() {
             />
           </Section>
         </>
+      )}
+
+      {managerOpen && (
+        <RoutineManagerScreen
+          routines={routines}
+          archived={archived}
+          onAdd={(name) => void addRoutine(name)}
+          onArchive={(id) => void archiveRoutine(id)}
+          onRemove={(id) => void removeRoutine(id)}
+          onClose={() => setManagerOpen(false)}
+        />
       )}
     </ScreenScaffold>
   );
