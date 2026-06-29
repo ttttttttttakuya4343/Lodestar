@@ -3,6 +3,8 @@ import { BottomNav } from './components/BottomNav';
 import { dateKey } from './domain/ids';
 import { requestPersistentStorage } from './lib/storage';
 import { isSyncConfigured } from './sync/config';
+import { GuideScreen } from './features/guide/GuideScreen';
+import { isGuideDismissed } from './features/guide/guide';
 import { TodayScreen } from './features/today/TodayScreen';
 import { WeekScreen } from './features/week/WeekScreen';
 import { MonthScreen } from './features/month/MonthScreen';
@@ -16,6 +18,8 @@ export type TabKey = 'today' | 'week' | 'month' | 'goals' | 'settings';
 export default function App() {
   const [tab, setTab] = useState<TabKey>('today');
   const [todayDate, setTodayDate] = useState(() => dateKey());
+  // 初回起動時はガイドを自動表示（「次回から表示しない」が未設定のとき）。
+  const [guideOpen, setGuideOpen] = useState(() => !isGuideDismissed());
 
   // 起動時にストレージ永続化を要求し、ブラウザによる自動削除を受けにくくする。
   useEffect(() => {
@@ -58,9 +62,13 @@ export default function App() {
         {tab === 'week' && <WeekScreen onOpenDay={openDay} />}
         {tab === 'month' && <MonthScreen onOpenDay={openDay} />}
         {tab === 'goals' && <GoalsScreen />}
-        {tab === 'settings' && <SettingsScreen />}
+        {tab === 'settings' && (
+          <SettingsScreen onOpenGuide={() => setGuideOpen(true)} />
+        )}
       </main>
       <BottomNav active={tab} onChange={setTab} />
+
+      {guideOpen && <GuideScreen onClose={() => setGuideOpen(false)} />}
     </div>
   );
 }

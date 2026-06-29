@@ -26,7 +26,11 @@ function formatBackupDate(iso: string): string {
   return `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`;
 }
 
-export function SettingsScreen() {
+interface SettingsScreenProps {
+  onOpenGuide: () => void;
+}
+
+export function SettingsScreen({ onOpenGuide }: SettingsScreenProps) {
   const [mode, setMode] = useState<ImportMode>('replace');
   const [status, setStatus] = useState<Status>(null);
   const { settings, markBackedUp } = useAppSettings();
@@ -92,6 +96,19 @@ export function SettingsScreen() {
 
   return (
     <ScreenScaffold eyebrow="SETTINGS" title="設定">
+      <Section title="使い方">
+        <button
+          type="button"
+          onClick={onOpenGuide}
+          className="flex h-11 w-full items-center justify-between rounded-card border border-line bg-surface px-3 text-sm font-semibold text-text active:bg-accent-weak"
+        >
+          使い方ガイドを開く
+          <span className="text-text-weak" aria-hidden>
+            ›
+          </span>
+        </button>
+      </Section>
+
       <Section title="データのバックアップ">
         <p className="mb-3 text-sm text-text-weak">
           データは端末内にのみ保存されます。機種変更やデータ消失に備えて JSON
