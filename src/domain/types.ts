@@ -26,6 +26,7 @@ export interface Settings extends BaseRecord {
   startDate: string; // 利用開始日
   notificationsEnabled: boolean;
   lastSyncedAt: string | null; // 案Aでは常に null
+  lastBackupAt: string | null; // 最終 JSON エクスポート日時（バックアップ動線用）
 }
 
 export interface EmotionWord extends BaseRecord {
