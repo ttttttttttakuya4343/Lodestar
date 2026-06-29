@@ -4,10 +4,13 @@
   --color-bg: #ffffff;
   --color-surface: #f7fafd;
   --color-accent: #5cc6e8; /* 淡い水色（STAR PLANNER 風） */
+  --color-accent-strong: #3bb4d8; /* アクティブ/強調用の少し濃い水色 */
   --color-accent-weak: #d7eef8;
   --color-text: #2b2f33;
   --color-text-weak: #6b7280;
   --color-line: #e6edf2;
   --radius: 14px;
   --space: 16px; /* 余白は広めを基本に */
+  /* ごく薄い影。ミニマルさを保ちつつカード/ナビに奥行きを与える */
+  --shadow-soft: 0 1px 2px rgba(43, 47, 51, 0.05), 0 6px 16px rgba(92, 198, 232, 0.06);
 }

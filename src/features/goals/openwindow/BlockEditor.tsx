@@ -26,7 +26,10 @@ export function BlockEditor({
 }: BlockEditorProps) {
   return (
     <div className="fixed inset-0 z-30 overflow-y-auto bg-bg">
-      <div className="mx-auto max-w-app px-gutter pb-24 pt-gutter">
+      <div
+        className="mx-auto max-w-app px-gutter pb-24"
+        style={{ paddingTop: 'calc(env(safe-area-inset-top) + var(--space))' }}
+      >
         <header className="mb-4 flex items-center gap-2">
           <button
             type="button"

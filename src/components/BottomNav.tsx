@@ -23,11 +23,11 @@ interface BottomNavProps {
 export function BottomNav({ active, onChange }: BottomNavProps) {
   return (
     <nav
-      className="fixed inset-x-0 bottom-0 z-10 border-t border-line bg-bg/95 backdrop-blur"
+      className="fixed inset-x-0 bottom-0 z-10 border-t border-line bg-bg/95 shadow-soft backdrop-blur"
       style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
       aria-label="メインナビゲーション"
     >
-      <ul className="mx-auto flex max-w-app items-stretch justify-around">
+      <ul className="mx-auto flex max-w-app items-stretch justify-around px-1">
         {ITEMS.map((item) => {
           const isActive = item.key === active;
           return (
@@ -37,15 +37,22 @@ export function BottomNav({ active, onChange }: BottomNavProps) {
                 onClick={() => onChange(item.key)}
                 aria-current={isActive ? 'page' : undefined}
                 // 高さ最低 56px でタップ領域を確保（片手操作）
-                className={`flex min-h-[56px] w-full flex-col items-center justify-center gap-0.5 py-2 text-xs transition-colors ${
-                  isActive ? 'text-accent' : 'text-text-weak'
-                }`}
+                className="flex min-h-[56px] w-full items-center justify-center py-1.5"
               >
-                <span className="text-xl leading-none" aria-hidden>
-                  {item.icon}
-                </span>
-                <span className={isActive ? 'font-semibold' : ''}>
-                  {item.label}
+                {/* アクティブなタブは淡い水色のピルで強調 */}
+                <span
+                  className={`flex flex-col items-center gap-0.5 rounded-2xl px-3 py-1 text-xs transition-colors ${
+                    isActive
+                      ? 'bg-accent-weak text-accent-strong'
+                      : 'text-text-weak'
+                  }`}
+                >
+                  <span className="text-xl leading-none" aria-hidden>
+                    {item.icon}
+                  </span>
+                  <span className={isActive ? 'font-semibold' : ''}>
+                    {item.label}
+                  </span>
                 </span>
               </button>
             </li>
