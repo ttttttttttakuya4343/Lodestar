@@ -23,8 +23,8 @@ export interface Repository<T extends BaseRecord> {
   getById(id: string): Promise<T | undefined>;
   put(record: T): Promise<T>; // upsert。updatedAt を更新して返す
   softDelete(id: string): Promise<void>; // deleted=true に
-  // 将来の同期用（案Bで使用。案Aでは未使用でも定義だけしておく）
-  getChangedSince?(iso: string): Promise<T[]>;
+  // 同期用（案B）: updatedAt が iso より後のレコード（deleted も含む）。
+  getChangedSince(iso: string): Promise<T[]>;
 }
 
 // アプリ全体のデータ窓口。UI はこれだけ見る。
