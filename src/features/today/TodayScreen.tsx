@@ -3,6 +3,7 @@ import { ScreenScaffold } from '../../components/ScreenScaffold';
 import { Section } from '../../components/Section';
 import { useRoutines } from '../routines/useRoutines';
 import { RoutineManagerScreen } from '../routines/RoutineManagerScreen';
+import { SearchScreen } from '../search/SearchScreen';
 import { useDailyEntry } from './useDailyEntry';
 import {
   addTask,
@@ -23,12 +24,26 @@ interface TodayScreenProps {
 
 export function TodayScreen({ date, onChangeDate }: TodayScreenProps) {
   const [managerOpen, setManagerOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
   const { entry, loading, apply } = useDailyEntry(date);
   const { routines, archived, addRoutine, archiveRoutine, removeRoutine } =
     useRoutines();
 
   return (
-    <ScreenScaffold eyebrow="TODAY" title="日次ジャーナル">
+    <ScreenScaffold
+      eyebrow="TODAY"
+      title="日次ジャーナル"
+      headerAction={
+        <button
+          type="button"
+          aria-label="検索"
+          onClick={() => setSearchOpen(true)}
+          className="flex h-11 w-11 items-center justify-center rounded-full text-xl text-text-weak active:bg-accent-weak"
+        >
+          🔍
+        </button>
+      }
+    >
       <DateNav date={date} onChange={onChangeDate} />
 
       {loading || !entry ? (
@@ -93,6 +108,16 @@ export function TodayScreen({ date, onChangeDate }: TodayScreenProps) {
           onArchive={(id) => void archiveRoutine(id)}
           onRemove={(id) => void removeRoutine(id)}
           onClose={() => setManagerOpen(false)}
+        />
+      )}
+
+      {searchOpen && (
+        <SearchScreen
+          onOpenDay={(d) => {
+            onChangeDate(d);
+            setSearchOpen(false);
+          }}
+          onClose={() => setSearchOpen(false)}
         />
       )}
     </ScreenScaffold>
